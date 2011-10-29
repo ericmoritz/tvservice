@@ -83,12 +83,19 @@ def feed(request):
     
     d = PyQuery(url=FEED_URL, parser="xml")
     
-    def show_matches(i):
-        title = PyQuery(this).find("title").text()
+    def not_wanted(title):
         result = any(pat.search(title) for pat in pats)
         return not result
 
-    d("item").filter(show_matches).remove()
+    def not_episode(title):
+        """remove any items that do not have S\d\dE\d\d in the title"""
+        return not re.search(r"S\d\dE\d\d", title)
+        
+    def remove_show(i):
+        title = PyQuery(this).find("title").text()
+        return not_episode(title) or not_wanted(title)
+
+    d("item").filter(remove_show).remove()
 
     response = Response()
     response.content_type = "application/rss+xml"
