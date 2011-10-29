@@ -86,7 +86,7 @@ def feed(request):
     def show_matches(i):
         title = PyQuery(this).find("title").text()
         result = any(pat.search(title) for pat in pats)
-        return result
+        return not result
 
     d("item").filter(show_matches).remove()
 

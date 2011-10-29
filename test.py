@@ -116,8 +116,9 @@ class TestFeed(unittest.TestCase):
         
     def testFeed(self):
         expected = """<rss version="2.0">
-   <item><title>Show with a x in it</title></item>
-   <item><title>Shitake Mushrooms</title></item>
+   <item><title>Test</title></item>
+   <item><title>Show with a . in it</title></item>
+   <item><title>Shit Talkers</title></item>
 </rss>"""
 
         req = Request.blank("/feed/")
