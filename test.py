@@ -2,6 +2,21 @@ import tvservice
 import unittest
 from webob import Request
 import json
+from StringIO import StringIO
+from pyquery import pyquery
+import re
+
+def strip_whitespace(s):
+    return re.sub(r">\s+<", "><", s)
+
+
+class MockURLOpener(object):
+    def __init__(self, content):
+        self.content = content
+        
+    def __call__(self, *args, **kwargs):
+        return StringIO(self.content)
+
 
 class TestShowResource(unittest.TestCase):
     def setUp(self):
@@ -71,4 +86,46 @@ class TestShowsResource(unittest.TestCase):
         self.assertEqual(res.status, "200 OK")
         self.assertEqual(res.content_type, "application/json")
         self.assertEqual(json.loads(res.body), expected)
+        
+
+class TestFeed(unittest.TestCase):
+    def setUp(self):
+        with tvservice.db() as shows:
+            shows['test'] = "Test"
+            shows['period'] = "Show with a . in it"
+            shows['shit'] = 'Shit'
+
+        self.fixture = """<rss version="2.0">
+   <item><title>Test</title></item>
+   <item><title>Show with a . in it</title></item>
+   <item><title>Show with a x in it</title></item>
+   <item><title>Shitake Mushrooms</title></item>
+   <item><title>Shit Talkers</title></item>
+</rss>"""
+
+        self._urlopen = pyquery.urlopen
+        pyquery.urlopen = MockURLOpener(self.fixture)
+
+    def tearDown(self):
+        with tvservice.db() as shows:
+            keys = shows.keys()
+            for key in keys:
+                del shows[key]
+
+        pyquery.urlopen = self._urlopen
+        
+    def testFeed(self):
+        expected = """<rss version="2.0">
+   <item><title>Show with a x in it</title></item>
+   <item><title>Shitake Mushrooms</title></item>
+</rss>"""
+
+        req = Request.blank("/feed/")
+        res = req.get_response(tvservice.application)
+        
+        self.assertEqual(res.status, "200 OK")
+        self.assertEqual(res.content_type, "application/rss+xml")
+
+        self.assertEqual(strip_whitespace(res.body),
+                         strip_whitespace(expected))
         

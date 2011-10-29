@@ -5,10 +5,12 @@ from webob import Response
 from webob.dec import wsgify
 from webob.exc import *
 from contextlib import contextmanager
+from pyquery import PyQuery
 import json
 import os
+import re
 
-
+FEED_URL = os.environ['FEED_URL']
 DB_ROOT = os.environ['WRITABLE_ROOT']
 DB_FILE = os.path.join(DB_ROOT, "shows.json")
 
@@ -23,7 +25,6 @@ def db():
     yield data
 
     json.dump(data, open(DB_FILE, "w"))
-
 
 ##
 # WSGI Apps
@@ -72,12 +73,38 @@ def show(request):
         return Response(name, content_type="text/plain")
 
 
+@wsgify
+def feed(request):
+    with db() as shows:
+        names = shows.values()
+    
+    pats = [re.compile(r"\b%s\b" % re.escape(name), re.I)
+            for name in names]
+    
+    d = PyQuery(url=FEED_URL, parser="xml")
+    
+    def show_matches(i):
+        title = PyQuery(this).find("title").text()
+        result = any(pat.search(title) for pat in pats)
+        return result
+
+    d("item").filter(show_matches).remove()
+
+    response = Response()
+    response.content_type = "application/rss+xml"
+    response.ubody = unicode(d)
+    response.cache_control = "no-cache"
+    return response    
+
+
 apps = {
     "shows": shows,
-    "show": show
+    "show": show,
+    "feed": feed,
 }
 
 mapper = routes.Mapper()
+mapper.connect("/feed/", application="feed")
 mapper.connect("/shows/", application="shows")
 mapper.connect("/shows/:slug", application="show")
 

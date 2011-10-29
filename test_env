@@ -1,1 +1,2 @@
 export WRITABLE_ROOT="/tmp"
+export FEED_URL="" # We mock urlopen, so this isn't needed
