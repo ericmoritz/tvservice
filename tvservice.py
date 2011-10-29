@@ -89,7 +89,7 @@ def feed(request):
 
     def not_episode(title):
         """remove any items that do not have S\d\dE\d\d in the title"""
-        return not re.search(r"S\d\dE\d\d", title)
+        return not re.search(r"S\d\dE\d\d", title, re.I)
         
     def remove_show(i):
         title = PyQuery(this).find("title").text()

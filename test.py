@@ -101,6 +101,7 @@ class TestFeed(unittest.TestCase):
    <item><title>Show with a x in it S01E01</title></item>
    <item><title>Shitake Mushrooms S01E01</title></item>
    <item><title>Shit Talkers S01E01</title></item>
+   <item><title>Shit Talkers s01e01</title></item>
    <item><title>Test</title></item>
 </rss>"""
 
@@ -120,6 +121,7 @@ class TestFeed(unittest.TestCase):
    <item><title>Test S01E01</title></item>
    <item><title>Show with a . in it S01E01</title></item>
    <item><title>Shit Talkers S01E01</title></item>
+   <item><title>Shit Talkers s01e01</title></item>
 </rss>"""
 
         req = Request.blank("/feed/")
