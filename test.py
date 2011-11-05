@@ -92,16 +92,15 @@ class TestFeed(unittest.TestCase):
     def setUp(self):
         with tvservice.db() as shows:
             shows['test'] = "Test"
-            shows['period'] = "Show with a . in it"
             shows['shit'] = 'Shit'
 
         self.fixture = """<rss version="2.0">
    <item><title>Test S01E01</title></item>
-   <item><title>Show with a . in it S01E01</title></item>
    <item><title>Show with a x in it S01E01</title></item>
    <item><title>Shitake Mushrooms S01E01</title></item>
    <item><title>Shit Talkers S01E01</title></item>
    <item><title>Shit Talkers s01e01</title></item>
+   <item><title>Shit.Talkers.S01E01</title></item>
    <item><title>Test</title></item>
 </rss>"""
 
@@ -119,9 +118,9 @@ class TestFeed(unittest.TestCase):
     def testFeed(self):
         expected = """<rss version="2.0">
    <item><title>Test S01E01</title></item>
-   <item><title>Show with a . in it S01E01</title></item>
    <item><title>Shit Talkers S01E01</title></item>
    <item><title>Shit Talkers s01e01</title></item>
+   <item><title>Shit.Talkers.S01E01</title></item>
 </rss>"""
 
         req = Request.blank("/feed/")

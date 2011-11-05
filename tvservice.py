@@ -78,12 +78,12 @@ def feed(request):
     with db() as shows:
         names = shows.values()
     
-    pats = [re.compile(r"\b%s\b" % re.escape(name), re.I)
-            for name in names]
-    
-    d = PyQuery(url=FEED_URL, parser="xml")
+    def normalize(string):
+        return re.sub(r"\W+", " ", string)
     
     def not_wanted(title):
+        # Treat any non-word char as whitespace
+        normalized_title = normalize(title)
         result = any(pat.search(title) for pat in pats)
         return not result
 
@@ -94,6 +94,12 @@ def feed(request):
     def remove_show(i):
         title = PyQuery(this).find("title").text()
         return not_episode(title) or not_wanted(title)
+
+
+    pats = [re.compile(r"\b%s\b" % re.escape(normalize(name)), re.I)
+            for name in names]
+    
+    d = PyQuery(url=FEED_URL, parser="xml")
 
     d("item").filter(remove_show).remove()
 
