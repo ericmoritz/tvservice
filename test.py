@@ -18,6 +18,49 @@ class MockURLOpener(object):
         return StringIO(self.content)
 
 
+class TestDetechShow(unittest.TestCase):
+
+    def test_normalize_title(self):
+        show_list = ["Something", "How I Met Your Father"]
+        title     = "How.I.met.your.father S01E02"
+        expected  = ("How I Met Your Father", "S01E02")
+        result    = tvservice.detect_show(show_list, title)
+        
+        self.assertEqual(result, expected)
+
+    def test_normalize_name(self):
+        show_list = ["Something", "How.I.Met.Your.Father"]
+        title     = "How I met your father S01E02"
+        expected  = ("How.I.Met.Your.Father", "S01E02")
+        result    = tvservice.detect_show(show_list, title)
+        
+        self.assertEqual(result, expected)
+
+    def test_scunthorpe(self):
+        show_list = ["Something", "Shit"]
+        title     = "How to cook Shitake Mushrooms"
+        expected  = None
+        result    = tvservice.detect_show(show_list, title)
+
+        self.assertEqual(result, expected)
+        
+    def test_title_nomatch(self):
+        show_list = ["Something", "Shit"]
+        title     = "Shitake Mushrooms"
+        expected  = None
+        result    = tvservice.detect_show(show_list, title)
+
+        self.assertEqual(result, expected)
+
+    def test_title_noepisode(self):
+        show_list = ["Something", "Shit Talkers"]
+        title     = "Shit Talkers"
+        expected  = None
+        result    = tvservice.detect_show(show_list, title)
+
+        self.assertEqual(result, expected)
+
+
 class TestShowResource(unittest.TestCase):
     def setUp(self):
         self.tearDown()
@@ -69,6 +112,7 @@ class TestShowResource(unittest.TestCase):
         self.assertEqual(res.status, "200 OK")
         self.assertEqual(res.body, "Test")
         self.assertEqual(res.content_type, "text/plain")
+
 
 class TestShowsResource(unittest.TestCase):
     def setUp(self):
