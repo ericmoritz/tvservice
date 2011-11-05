@@ -61,12 +61,74 @@ class TestDetechShow(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
+class TestEpisodesDB(unittest.TestCase):
+    def setUp(self):
+        # Create an inital episodes structure
+        with tvservice.episodes_db() as episodes:
+            # Mark two episodes as seen
+            episodes = tvservice.episode_seen(episodes,
+                                              "How I Met Your Father", "S01E04",
+                                              "How I Met your Father S01E04 720P")
+            episodes = tvservice.episode_seen(episodes,
+                                              "Fact Provers", "S01E03",
+                                              "Fact Provers S01E03 720P")
+
+    def test_is_not_dupe(self):
+        with tvservice.episodes_db() as db:
+            episodes = db
+
+        # Episode titles have to be exact to not be a dupe
+        self.assertFalse(tvservice.episode_is_dupe(episodes,
+                                                   "How I Met Your Father", "S01E04",
+                                                   "How I Met your Father S01E04 720P"))
+
+        self.assertFalse(tvservice.episode_is_dupe(episodes,
+                                                   "Fact Provers", "S01E03",
+                                                   "Fact Provers S01E03 720P"))
+
+        # Any unknown episode is obviously not a dupe
+        self.assertFalse(tvservice.episode_is_dupe(episodes,
+                                                   "Inspector Spacetime", "S01E03",
+                                                   "Inspector Spacetime S01E03 720P"))
+
+        
+    def test_is_dupe(self):
+        with tvservice.episodes_db() as db:
+            episodes = db
+
+        # Episode titles have to be exact to not be a dupe
+        self.assertTrue(tvservice.episode_is_dupe(episodes,
+                                                  "How I Met Your Father", "S01E04",
+                                                  "How I Met your father S01E04 720P"))
+
+        self.assertTrue(tvservice.episode_is_dupe(episodes,
+                                                  "Fact Provers", "S01E03",
+                                                  "Fact provers S01E03 720P"))
+
+        # Episode quality has to be exact
+        self.assertTrue(tvservice.episode_is_dupe(episodes,
+                                                  "How I Met Your Father", "S01E04",
+                                                  "How I Met your Father S01E04 1080P"))
+
+        self.assertTrue(tvservice.episode_is_dupe(episodes,
+                                                  "Fact Provers", "S01E03",
+                                                  "Fact Provers S01E03 1080P"))
+
+        # Episode slug has to be exact
+        self.assertTrue(tvservice.episode_is_dupe(episodes,
+                                                  "How I Met Your Father", "S01E05",
+                                                  "How I Met your Father S01E05 720P"))
+        self.assertTrue(tvservice.episode_is_dupe(episodes,
+                                                  "Fact Provers", "S01E04",
+                                                  "Fact Provers S01E04 720P"))
+        
+
 class TestShowResource(unittest.TestCase):
     def setUp(self):
         self.tearDown()
 
     def tearDown(self):
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             keys = shows.keys()
             for key in keys:
                 del shows[key]
@@ -82,11 +144,11 @@ class TestShowResource(unittest.TestCase):
         self.assertEqual(res.body, "Test")
         self.assertEqual(res.content_type, "text/plain")
 
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             self.assertEqual(shows["test"], "Test")
 
     def testDELETE(self):
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             shows['test'] = "Test"
 
         req = Request.blank("/shows/test", method="DELETE")
@@ -105,7 +167,7 @@ class TestShowResource(unittest.TestCase):
         res = req.get_response(tvservice.application)
         self.assertEqual(res.status, "404 Not Found")
 
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             shows['test'] = "Test"
 
         res = req.get_response(tvservice.application)
@@ -116,7 +178,7 @@ class TestShowResource(unittest.TestCase):
 
 class TestShowsResource(unittest.TestCase):
     def setUp(self):
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             shows['test'] = "Test!"
             shows['himym'] = "How I Met Your Mother"
 
@@ -134,7 +196,7 @@ class TestShowsResource(unittest.TestCase):
 
 class TestFeed(unittest.TestCase):
     def setUp(self):
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             shows['test'] = "Test"
             shows['shit'] = 'Shit'
 
@@ -152,7 +214,7 @@ class TestFeed(unittest.TestCase):
         pyquery.urlopen = MockURLOpener(self.fixture)
 
     def tearDown(self):
-        with tvservice.db() as shows:
+        with tvservice.shows_db() as shows:
             keys = shows.keys()
             for key in keys:
                 del shows[key]
