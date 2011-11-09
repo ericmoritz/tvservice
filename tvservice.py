@@ -201,15 +201,18 @@ def feed(request):
 ## WSGI Middleware
 ##
 class BasicAuth(object):
-    def __init__(self, app, password_map):
+    def __init__(self, app, password_map, realm):
         self.app = app
         self.password_map = password_map
+        self.realm = realm
 
     @wsgify
     def __call__(self, request):
+        badauth_response = HTTPUnauthorized("Use basic authorization",
+                                            www_authenticate='Basic realm="%s"' % (self.realm, ))
         if request.authorization is None \
                 or request.authorization[0].lower() != "basic":
-            raise HTTPUnauthorized("Use basic authorization")
+            raise badauth_response
 
         authtype, param = request.authorization
         username, password = param.decode("base64").split(":")
@@ -218,7 +221,7 @@ class BasicAuth(object):
                 and self.password_map[username] == password:
             return request.get_response(self.app)
         else:
-            raise HTTPUnauthorized("Bad Username or Password")
+            raise badauth_response
         
 
 ##
@@ -241,7 +244,7 @@ This subapp is needed because it requires authentication"""
 
     subapp = nanoweb.FrontController(apps)
     subapp = RoutesMiddleware(subapp, mapper)
-    subapp = BasicAuth(subapp, password_map)
+    subapp = BasicAuth(subapp, password_map, "shows")
     return subapp
 
 ##

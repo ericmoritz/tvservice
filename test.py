@@ -28,10 +28,31 @@ class TestBasicAuth(unittest.TestCase):
         req = Request.blank("/")
         req.authorization = "Basic " + "user:pass".encode("base64")
         
-        app = tvservice.BasicAuth(dummy_app, passwords)
+        app = tvservice.BasicAuth(dummy_app, passwords, "test")
         resp = req.get_response(app)
         self.assertEqual(resp.status, "200 OK")
         self.assertEqual(resp.body, "OK")        
+
+    def test_invalid(self):
+        passwords = {"user": "pass"}
+
+        req = Request.blank("/")
+        req.authorization = "Basic " + "user:notpass".encode("base64")
+        
+        app = tvservice.BasicAuth(dummy_app, passwords, "test")
+        resp = req.get_response(app)
+        self.assertEqual(resp.status, "401 Unauthorized")
+        self.assertEqual(resp.www_authenticate, ("Basic",{"realm": "test"}))
+
+    def test_noauth(self):
+        passwords = {"user": "pass"}
+
+        req = Request.blank("/")
+        
+        app = tvservice.BasicAuth(dummy_app, passwords, "test")
+        resp = req.get_response(app)
+        self.assertEqual(resp.status, "401 Unauthorized")
+        self.assertEqual(resp.www_authenticate, ("Basic",{"realm": "test"}))
 
         
 class TestDetechShow(unittest.TestCase):
