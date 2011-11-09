@@ -10,10 +10,12 @@ import json
 import os
 import re
 
+PASSWORD_FILE = os.environ['PASSWORD_FILE']
 FEED_URL = os.environ['FEED_URL']
 DB_ROOT = os.environ['WRITABLE_ROOT']
 DB_FILE = os.path.join(DB_ROOT, "shows.json")
 EPISODE_DB_FILE = os.path.join(DB_ROOT, "episodes.json")
+
 
 ##
 # Models
@@ -195,17 +197,63 @@ def feed(request):
     response.cache_control = "no-cache"
     return response    
 
+##
+## WSGI Middleware
+##
+class BasicAuth(object):
+    def __init__(self, app, password_map):
+        self.app = app
+        self.password_map = password_map
 
+    @wsgify
+    def __call__(self, request):
+        if request.authorization is None \
+                or request.authorization[0].lower() != "basic":
+            raise HTTPUnauthorized("Use basic authorization")
+
+        authtype, param = request.authorization
+        username, password = param.decode("base64").split(":")
+
+        if username in self.password_map\
+                and self.password_map[username] == password:
+            return request.get_response(self.app)
+        else:
+            raise HTTPUnauthorized("Bad Username or Password")
+        
+
+##
+## Shows sub app config
+##
+def shows_subapp():
+    """This is a factory for building the shows app that is mapped to 
+/shows/
+
+This subapp is needed because it requires authentication"""
+    password_map = json.load(open(PASSWORD_FILE))['passwords']
+    apps = {
+        "shows": shows,
+        "show": show,
+    }
+    mapper = routes.Mapper()
+    mapper.connect("/:slug", application="show")
+    mapper.connect("/", application="shows")
+
+
+    subapp = nanoweb.FrontController(apps)
+    subapp = RoutesMiddleware(subapp, mapper)
+    subapp = BasicAuth(subapp, password_map)
+    return subapp
+
+##
+## TVService apps
+## 
 apps = {
-    "shows": shows,
-    "show": show,
+    "shows": shows_subapp(),
     "feed": feed,
 }
-
 mapper = routes.Mapper()
+mapper.connect("/shows/{path_info:.*}", application="shows")
 mapper.connect("/feed/", application="feed")
-mapper.connect("/shows/", application="shows")
-mapper.connect("/shows/:slug", application="show")
 
 application = nanoweb.FrontController(apps)
 application = RoutesMiddleware(application, mapper)

@@ -1,2 +1,3 @@
 export WRITABLE_ROOT="/tmp"
 export FEED_URL="" # We mock urlopen, so this isn't needed
+export PASSWORD_FILE=`pwd`/passwords-test.json

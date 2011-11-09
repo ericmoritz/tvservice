@@ -17,7 +17,23 @@ class MockURLOpener(object):
     def __call__(self, *args, **kwargs):
         return StringIO(self.content)
 
+def dummy_app(environ, start_response):
+    start_response("200 OK", [])
+    return ["OK"]
 
+class TestBasicAuth(unittest.TestCase):
+    def test_valid(self):
+        passwords = {"user": "pass"}
+
+        req = Request.blank("/")
+        req.authorization = "Basic " + "user:pass".encode("base64")
+        
+        app = tvservice.BasicAuth(dummy_app, passwords)
+        resp = req.get_response(app)
+        self.assertEqual(resp.status, "200 OK")
+        self.assertEqual(resp.body, "OK")        
+
+        
 class TestDetechShow(unittest.TestCase):
 
     def test_normalize_title(self):
@@ -125,6 +141,7 @@ class TestEpisodesDB(unittest.TestCase):
 
 class TestShowResource(unittest.TestCase):
     def setUp(self):
+        self.authorization = "Basic " + "test-user:test-password".encode("base64")
         self.tearDown()
 
     def tearDown(self):
@@ -136,6 +153,7 @@ class TestShowResource(unittest.TestCase):
 
     def testPUT(self):
         req = Request.blank("/shows/test", method="PUT", body="Test",
+                            authorization=self.authorization,
                             content_type="text/plain")
         
         res = req.get_response(tvservice.application)
@@ -151,7 +169,8 @@ class TestShowResource(unittest.TestCase):
         with tvservice.shows_db() as shows:
             shows['test'] = "Test"
 
-        req = Request.blank("/shows/test", method="DELETE")
+        req = Request.blank("/shows/test", method="DELETE",
+                            authorization=self.authorization)
         res = req.get_response(tvservice.application)
 
         self.assertEqual(res.status, "204 No Content")
@@ -162,13 +181,18 @@ class TestShowResource(unittest.TestCase):
         
 
     def testGET(self):
-        req = Request.blank("/shows/test", method="GET")
+        req = Request.blank("/shows/test", method="GET",
+                            authorization=self.authorization)
 
         res = req.get_response(tvservice.application)
         self.assertEqual(res.status, "404 Not Found")
 
         with tvservice.shows_db() as shows:
             shows['test'] = "Test"
+
+
+        req = Request.blank("/shows/test", method="GET",
+                            authorization=self.authorization)
 
         res = req.get_response(tvservice.application)
         self.assertEqual(res.status, "200 OK")
@@ -178,6 +202,7 @@ class TestShowResource(unittest.TestCase):
 
 class TestShowsResource(unittest.TestCase):
     def setUp(self):
+        self.authorization = "Basic " + "test-user:test-password".encode("base64")
         with tvservice.shows_db() as shows:
             shows['test'] = "Test!"
             shows['himym'] = "How I Met Your Mother"
@@ -186,7 +211,8 @@ class TestShowsResource(unittest.TestCase):
         expected = {"test": "Test!",
                     "himym": "How I Met Your Mother"}
 
-        req = Request.blank("/shows/")
+        req = Request.blank("/shows/",
+                            authorization=self.authorization)
         res = req.get_response(tvservice.application)
 
         self.assertEqual(res.status, "200 OK")
@@ -230,6 +256,7 @@ class TestFeed(unittest.TestCase):
 </rss>"""
 
         req = Request.blank("/feed/")
+
         res = req.get_response(tvservice.application)
         
         self.assertEqual(res.status, "200 OK")
