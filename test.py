@@ -186,6 +186,22 @@ class TestShowResource(unittest.TestCase):
         with tvservice.shows_db() as shows:
             self.assertEqual(shows["test"], "Test")
 
+    def testPUTJSON(self):
+        req = Request.blank("/shows/test", method="PUT",
+                            authorization=self.authorization,
+                            content_type="application/json")
+
+        req.body = json.dumps({"title": "Test"})
+
+        res = req.get_response(tvservice.application)
+
+        self.assertEqual(res.status, "200 OK")
+        self.assertEqual(res.body, "Test")
+        self.assertEqual(res.content_type, "text/plain")
+
+        with tvservice.shows_db() as shows:
+            self.assertEqual(shows["test"], "Test")
+
     def testDELETE(self):
         with tvservice.shows_db() as shows:
             shows['test'] = "Test"
@@ -196,7 +212,8 @@ class TestShowResource(unittest.TestCase):
 
         self.assertEqual(res.status, "204 No Content")
 
-    
+        req = Request.blank("/shows/test", method="DELETE",
+                            authorization=self.authorization)
         res = req.get_response(tvservice.application)
         self.assertEqual(res.status, "404 Not Found")
         
