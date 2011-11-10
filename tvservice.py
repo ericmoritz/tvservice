@@ -6,6 +6,7 @@ from webob.dec import wsgify
 from webob.exc import *
 from contextlib import contextmanager
 from pyquery import PyQuery
+from static import Cling
 import json
 import os
 import re
@@ -15,7 +16,6 @@ FEED_URL = os.environ['FEED_URL']
 DB_ROOT = os.environ['WRITABLE_ROOT']
 DB_FILE = os.path.join(DB_ROOT, "shows.json")
 EPISODE_DB_FILE = os.path.join(DB_ROOT, "episodes.json")
-
 
 ##
 # Models
@@ -144,17 +144,28 @@ def shows(request):
 @wsgify
 def show(request):
     nanoweb.allowed(request, ["GET", "PUT", "DELETE"])
+    content_type = nanoweb.agent_accepts(request, ["text/plain",
+                                                   "application/json"])
+    # Set up the encoders
+    encoders = {"text/plain": lambda d: d['title']}
+    encoders.update(nanoweb.encoders)
+
+    # Set up the decoders
+    decoders = {"text/plain": lambda s: {"title": s}}
+    decoders.update(nanoweb.decoders)
+
     url = request.environ['routes.url']
     slug = request.urlvars['slug']
 
     if request.method == "PUT":
-        if request.content_type != "text/plain":
-            raise HTTPUnsupportedMediaType("use text/plain")
+        data = nanoweb.decode_body(request, decoders=decoders)
         
-        name = request.body
         with shows_db() as shows:
-            shows[slug] = name
-        return Response(name, content_type="text/plain")
+            shows[slug] = data['title']
+        
+        body = nanoweb.encode_body(content_type, data,
+                                   encoders=encoders)
+        return Response(body, content_type=content_type)
 
     elif request.method == "DELETE":
         try:
@@ -171,6 +182,9 @@ def show(request):
         except KeyError:
             return HTTPNotFound()
         
+        data = {"title": name, "slug": slug}
+        body = nanoweb.encode_body(content_type, data,
+                                   encoders=encoders)
         return Response(name, content_type="text/plain")
 
 
@@ -250,13 +264,22 @@ This subapp is needed because it requires authentication"""
 ##
 ## TVService apps
 ## 
+
 apps = {
     "shows": shows_subapp(),
     "feed": feed,
 }
+
+
 mapper = routes.Mapper()
 mapper.connect("/shows/{path_info:.*}", application="shows")
 mapper.connect("/feed/", application="feed")
+
+STATIC_ROOT = os.environ.get('STATIC_ROOT')
+if STATIC_ROOT:
+    static = Cling(STATIC_ROOT)
+    apps['static'] = static
+    mapper.connect("/{path_info:.*}", application="static")
 
 application = nanoweb.FrontController(apps)
 application = RoutesMiddleware(application, mapper)
