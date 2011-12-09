@@ -29,7 +29,7 @@ def db(db_file,
     if os.path.exists(db_file):
         data = load(json.load(open(db_file)))
     else:
-        data = initial_value()
+        data = initial_value
 
     yield data
 
@@ -62,7 +62,7 @@ episode
     pats              =\
         [(name, re.compile(r"\b%s\b" % re.escape(normalize(name)), re.I))
          for name in show_list]
-    episode_pat       = re.compile("S\d\dE\d\d", re.I)
+    episode_pat       = re.compile("(S\d\dE\d\d|\d{4} \d{2} \d{2})", re.I)
     normailized_title = normalize(title)
 
     for name, pat in pats:

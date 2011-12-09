@@ -55,7 +55,7 @@ class TestBasicAuth(unittest.TestCase):
         self.assertEqual(resp.www_authenticate, ("Basic",{"realm": "test"}))
 
         
-class TestDetechShow(unittest.TestCase):
+class TestDetectShow(unittest.TestCase):
 
     def test_normalize_title(self):
         show_list = ["Something", "How I Met Your Father"]
@@ -69,6 +69,14 @@ class TestDetechShow(unittest.TestCase):
         show_list = ["Something", "How.I.Met.Your.Father"]
         title     = "How I met your father S01E02"
         expected  = ("How.I.Met.Your.Father", "S01E02")
+        result    = tvservice.detect_show(show_list, title)
+        
+        self.assertEqual(result, expected)
+
+    def test_date_episode(self):
+        show_list = ["Something", "How.I.Met.Your.Father"]
+        title     = "How I met your father 2011 12 05"
+        expected  = ("How.I.Met.Your.Father", "2011 12 05")
         result    = tvservice.detect_show(show_list, title)
         
         self.assertEqual(result, expected)
