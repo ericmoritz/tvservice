@@ -6,6 +6,7 @@ from webob.dec import wsgify
 from webob.exc import *
 from contextlib import contextmanager
 from pyquery import PyQuery
+import requests
 from static import Cling
 import json
 import os
@@ -21,7 +22,7 @@ EPISODE_DB_FILE = os.path.join(DB_ROOT, "episodes.json")
 # Models
 ##
 @contextmanager
-def db(db_file, 
+def db(db_file,
        initial_value,
        load=lambda x:x,
        dump=lambda x:x):
@@ -126,7 +127,7 @@ def episode_is_dupe(episodes, name, episode_slug, rss_title):
     else:
         # Anything else is a dupe
         return True
-    
+
 ##
 # WSGI Apps
 ##
@@ -159,10 +160,10 @@ def show(request):
 
     if request.method == "PUT":
         data = nanoweb.decode_body(request, decoders=decoders)
-        
+
         with shows_db() as shows:
             shows[slug] = data['title']
-        
+
         body = nanoweb.encode_body(content_type, data,
                                    encoders=encoders)
         return Response(body, content_type=content_type)
@@ -181,26 +182,30 @@ def show(request):
                 name = shows[slug]
         except KeyError:
             return HTTPNotFound()
-        
+
         data = {"title": name, "slug": slug}
         body = nanoweb.encode_body(content_type, data,
                                    encoders=encoders)
         return Response(name, content_type="text/plain")
 
 
+def get_feed():
+    r = requests.get(FEED_URL)
+    return r.content
+
 @wsgify
-def feed(request):
+def feed(request, get_feed=get_feed):
     with shows_db() as shows:
         show_list = shows.values()
-    
-    d = PyQuery(url=FEED_URL, parser="xml")
+
+    d = PyQuery(get_feed(), parser="xml")
 
     for item in d("item"):
         ditem = PyQuery(item)
         title = ditem.find("title").text()
         match = detect_show(show_list, title)
         if match:
-            name, episode = match 
+            name, episode = match
             # TODO: Record episode in the feed so that future versions of this episod will be ignored
         else:
             ditem.remove()
@@ -209,7 +214,7 @@ def feed(request):
     response.content_type = "application/rss+xml"
     response.ubody = unicode(d)
     response.cache_control = "no-cache"
-    return response    
+    return response
 
 ##
 ## WSGI Middleware
@@ -236,13 +241,13 @@ class BasicAuth(object):
             return request.get_response(self.app)
         else:
             raise badauth_response
-        
+
 
 ##
 ## Shows sub app config
 ##
 def shows_subapp():
-    """This is a factory for building the shows app that is mapped to 
+    """This is a factory for building the shows app that is mapped to
 /shows/
 
 This subapp is needed because it requires authentication"""
@@ -263,7 +268,7 @@ This subapp is needed because it requires authentication"""
 
 ##
 ## TVService apps
-## 
+##
 
 apps = {
     "shows": shows_subapp(),

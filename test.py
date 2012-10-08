@@ -10,16 +10,10 @@ def strip_whitespace(s):
     return re.sub(r">\s+<", "><", s)
 
 
-class MockURLOpener(object):
-    def __init__(self, content):
-        self.content = content
-        
-    def __call__(self, *args, **kwargs):
-        return StringIO(self.content)
-
 def dummy_app(environ, start_response):
     start_response("200 OK", [])
     return ["OK"]
+
 
 class TestBasicAuth(unittest.TestCase):
     def test_valid(self):
@@ -27,18 +21,18 @@ class TestBasicAuth(unittest.TestCase):
 
         req = Request.blank("/")
         req.authorization = "Basic " + "user:pass".encode("base64")
-        
+
         app = tvservice.BasicAuth(dummy_app, passwords, "test")
         resp = req.get_response(app)
         self.assertEqual(resp.status, "200 OK")
-        self.assertEqual(resp.body, "OK")        
+        self.assertEqual(resp.body, "OK")
 
     def test_invalid(self):
         passwords = {"user": "pass"}
 
         req = Request.blank("/")
         req.authorization = "Basic " + "user:notpass".encode("base64")
-        
+
         app = tvservice.BasicAuth(dummy_app, passwords, "test")
         resp = req.get_response(app)
         self.assertEqual(resp.status, "401 Unauthorized")
@@ -48,13 +42,13 @@ class TestBasicAuth(unittest.TestCase):
         passwords = {"user": "pass"}
 
         req = Request.blank("/")
-        
+
         app = tvservice.BasicAuth(dummy_app, passwords, "test")
         resp = req.get_response(app)
         self.assertEqual(resp.status, "401 Unauthorized")
         self.assertEqual(resp.www_authenticate, ("Basic",{"realm": "test"}))
 
-        
+
 class TestDetectShow(unittest.TestCase):
 
     def test_normalize_title(self):
@@ -62,7 +56,7 @@ class TestDetectShow(unittest.TestCase):
         title     = "How.I.met.your.father S01E02"
         expected  = ("How I Met Your Father", "S01E02")
         result    = tvservice.detect_show(show_list, title)
-        
+
         self.assertEqual(result, expected)
 
     def test_normalize_name(self):
@@ -70,7 +64,7 @@ class TestDetectShow(unittest.TestCase):
         title     = "How I met your father S01E02"
         expected  = ("How.I.Met.Your.Father", "S01E02")
         result    = tvservice.detect_show(show_list, title)
-        
+
         self.assertEqual(result, expected)
 
     def test_date_episode(self):
@@ -78,7 +72,7 @@ class TestDetectShow(unittest.TestCase):
         title     = "How I met your father 2011 12 05"
         expected  = ("How.I.Met.Your.Father", "2011 12 05")
         result    = tvservice.detect_show(show_list, title)
-        
+
         self.assertEqual(result, expected)
 
     def test_scunthorpe(self):
@@ -88,7 +82,7 @@ class TestDetectShow(unittest.TestCase):
         result    = tvservice.detect_show(show_list, title)
 
         self.assertEqual(result, expected)
-        
+
     def test_title_nomatch(self):
         show_list = ["Something", "Shit"]
         title     = "Shitake Mushrooms"
@@ -136,7 +130,7 @@ class TestEpisodesDB(unittest.TestCase):
                                                    "Inspector Spacetime", "S01E03",
                                                    "Inspector Spacetime S01E03 720P"))
 
-        
+
     def test_is_dupe(self):
         with tvservice.episodes_db() as db:
             episodes = db
@@ -166,7 +160,7 @@ class TestEpisodesDB(unittest.TestCase):
         self.assertTrue(tvservice.episode_is_dupe(episodes,
                                                   "Fact Provers", "S01E04",
                                                   "Fact Provers S01E04 720P"))
-        
+
 
 class TestShowResource(unittest.TestCase):
     def setUp(self):
@@ -178,13 +172,13 @@ class TestShowResource(unittest.TestCase):
             keys = shows.keys()
             for key in keys:
                 del shows[key]
-        
+
 
     def testPUT(self):
         req = Request.blank("/shows/test", method="PUT", body="Test",
                             authorization=self.authorization,
                             content_type="text/plain")
-        
+
         res = req.get_response(tvservice.application)
 
         self.assertEqual(res.status, "200 OK")
@@ -224,7 +218,7 @@ class TestShowResource(unittest.TestCase):
                             authorization=self.authorization)
         res = req.get_response(tvservice.application)
         self.assertEqual(res.status, "404 Not Found")
-        
+
 
     def testGET(self):
         req = Request.blank("/shows/test", method="GET",
@@ -264,7 +258,7 @@ class TestShowsResource(unittest.TestCase):
         self.assertEqual(res.status, "200 OK")
         self.assertEqual(res.content_type, "application/json")
         self.assertEqual(json.loads(res.body), expected)
-        
+
 
 class TestFeed(unittest.TestCase):
     def setUp(self):
@@ -282,8 +276,7 @@ class TestFeed(unittest.TestCase):
    <item><title>Test</title></item>
 </rss>"""
 
-        self._urlopen = pyquery.urlopen
-        pyquery.urlopen = MockURLOpener(self.fixture)
+        tvservice.get_feed = lambda: self.fixture
 
     def tearDown(self):
         with tvservice.shows_db() as shows:
@@ -291,8 +284,8 @@ class TestFeed(unittest.TestCase):
             for key in keys:
                 del shows[key]
 
-        pyquery.urlopen = self._urlopen
-        
+        reload(tvservice)
+
     def testFeed(self):
         expected = """<rss version="2.0">
    <item><title>Test S01E01</title></item>
@@ -304,10 +297,9 @@ class TestFeed(unittest.TestCase):
         req = Request.blank("/feed/")
 
         res = req.get_response(tvservice.application)
-        
+
         self.assertEqual(res.status, "200 OK")
         self.assertEqual(res.content_type, "application/rss+xml")
 
         self.assertEqual(strip_whitespace(res.body),
                          strip_whitespace(expected))
-        

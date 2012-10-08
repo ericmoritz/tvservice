@@ -8,3 +8,4 @@ nose==1.1.2
 pyquery==1.0
 simplejson==2.2.1
 wsgiref==0.1.2
+requests==0.14.1
