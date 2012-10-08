@@ -33,9 +33,14 @@ var Shows = Backbone.Collection.extend({
   url: '/shows/',
   model: Show,
   parse: function(response) {
-    return _.map(response, function(title, slug) {
-      return {"id": slug, "slug": slug, "title": title};
-    });
+    return _.sortBy(
+        _.map(response, function(title, slug) {
+            return {"id": slug, "slug": slug, "title": title};
+        }),
+        function(item) {
+            return item.title;
+        }
+    );
   }
 });
 
@@ -48,7 +53,7 @@ var AddShowView = Backbone.View.extend({
   initialize: function(options) {
     this.input = this.$("#show-name");
     this.coll = options.collection;
-    
+
     _.bindAll(this);
   },
   updateOnEnter: function(e) {
@@ -156,7 +161,7 @@ var App = Backbone.Router.extend({
     this.views = {}
     this.views.home = new HomeView({shows:this.shows});
     Backbone.history.start()
-  }, 
+  },
   home: function() {
     return this.views.home;
   },
